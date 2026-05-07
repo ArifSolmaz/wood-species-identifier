@@ -96,6 +96,54 @@ st.markdown("""
 
 
 # ─────────────────────────────────────────────────────────────
+# Authentication gate (shared password)
+# ─────────────────────────────────────────────────────────────
+def _require_password():
+    """Simple shared-password gate for private team deployments.
+
+    To activate on Streamlit Cloud:
+      Manage app → Settings → Secrets → add a single line:
+          APP_PASSWORD = "your-shared-passphrase"
+
+    When APP_PASSWORD is not set (e.g. running locally with no secrets file),
+    the gate is bypassed so development is unobstructed.
+    """
+    if st.session_state.get("auth_ok", False):
+        return
+    expected = None
+    try:
+        expected = st.secrets.get("APP_PASSWORD", None) if hasattr(st, "secrets") else None
+    except Exception:
+        expected = None
+    if not expected:
+        return  # Open access — no password configured
+
+    st.markdown(
+        '<div style="max-width:520px;margin:5rem auto 1.2rem;text-align:center;">'
+        '<h2 style="margin-bottom:0.4rem;">🔒 Wood Species Identifier — Private</h2>'
+        '<p style="color:#aaa;margin-top:0;">This research tool is restricted to '
+        'the project team. Enter the shared password to continue.</p></div>',
+        unsafe_allow_html=True,
+    )
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
+        pw = st.text_input("Password", type="password",
+                           label_visibility="collapsed",
+                           placeholder="Enter team password",
+                           key="_pw_input")
+        if pw and pw == expected:
+            st.session_state["auth_ok"] = True
+            st.rerun()
+        elif pw:
+            st.error("Wrong password — please try again.")
+        st.caption("If you don't have the password, ask your project lead.")
+    st.stop()
+
+
+_require_password()
+
+
+# ─────────────────────────────────────────────────────────────
 # Model Download & Loading
 # ─────────────────────────────────────────────────────────────
 def download_model_from_drive():
